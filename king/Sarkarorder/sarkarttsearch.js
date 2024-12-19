@@ -1,82 +1,66 @@
-import axios from "axios";
-import config from "../../config.js"; // Ensure config is an ES module
+import axios from 'axios';
+import config from '../../config.cjs';
 
-const tiktokSearchCommand = async (m, gss) => {
+const tiktokSearch = async (m, gss) => {
   const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(" ")[0].toLowerCase() : "";
+  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+  const args = m.body.trim().split(' ').slice(1); // Extract search query
+  const query = args.join(' ');
 
-  if (cmd === "ttsearch") {
-    // Extract query from user input
-    const query = m.body.split(" ").slice(1).join(" ");
-
-    if (!query) {
-      await gss.sendMessage(
-        m.from,
-        { text: "❌ Please provide a search term after the command. Example: *!ttsearch Tu hai kahan*" },
-        { quoted: m }
-      );
-      return;
-    }
-
-    const searchApiUrl = `https://api.siputzx.my.id/api/s/tiktok?query=${encodeURIComponent(query)}`;
-    const errorMessage = "❌ Failed to fetch TikTok search results. Please try again later.";
-
+  if (cmd === 'tiktoksearch' && query) {
     try {
-      // Fetch search results from the API
-      const response = await axios.get(searchApiUrl);
+      const apiUrl = `https://api.siputzx.my.id/api/s/tiktok?query=${encodeURIComponent(query)}`;
+      const response = await axios.get(apiUrl);
 
-      if (!response || response.status !== 200 || !response.data.status) {
+      if (response.data && response.data.status) {
+        const results = response.data.data;
+        let searchResults = `🎥 *Sarkar-MD TikTok Search Results* 🎥\n\n`;
+        
+        // Iterate through all results and append to message
+        results.forEach((result, index) => {
+          searchResults += `
+*${index + 1}. Video ID:* ${result.video_id}
+📍 *Region:* ${result.region}
+📝 *Title:* ${result.title}
+📸 [Cover Image](${result.cover})
+
+`;
+        });
+
+        searchResults += `\n*Powered By Bandaheali*`;
+
+        // Send results to the user
         await gss.sendMessage(
           m.from,
-          { text: errorMessage },
+          {
+            text: searchResults.trim(),
+          },
           { quoted: m }
         );
-        return;
-      }
-
-      const results = response.data.data;
-
-      if (results.length === 0) {
-        await gss.sendMessage(
-          m.from,
-          { text: `❌ No results found for "${query}".` },
-          { quoted: m }
-        );
-        return;
-      }
-
-      // Iterate over results and send each result to the user
-      for (const result of results) {
-        const message = {
-          image: { url: result.cover },
-          caption: `🎥 *TikTok Video Search Result* 🎥\n\n` +
-            `*Title:* ${result.title}\n` +
-            `*Duration:* ${result.duration} seconds\n` +
-            `*Play Count:* ${result.play_count}\n` +
-            `*Likes:* ${result.digg_count}\n` +
-            `*Comments:* ${result.comment_count}\n` +
-            `*Shares:* ${result.share_count}\n` +
-            `*Music:* ${result.music_info.title} by ${result.music_info.author}\n\n` +
-            `*Author:* ${result.author.nickname} (@${result.author.unique_id})\n` +
-            `*Region:* ${result.region}\n\n` +
-            `🔗 *Watch Video:* ${result.play}\n\n` +
-            `_Sarkar-MD by Bandaheali_`,
-        };
-
-        await gss.sendMessage(m.from, message, { quoted: m });
+      } else {
+        throw new Error('No results found!');
       }
     } catch (error) {
-      console.error("TikTok Search Command Error:", error.message || error);
-
       await gss.sendMessage(
         m.from,
-        { text: errorMessage },
+        {
+          text: `❌ *Error fetching TikTok search results!*\n\nPlease make sure the query is correct.\n\n*Powered By Bandaheali*`,
+        },
         { quoted: m }
       );
     }
+  } else if (cmd === 'tiktoksearch') {
+    await gss.sendMessage(
+      m.from,
+      {
+        text: `⚠️ *Usage:* ${prefix}tiktoksearch <query>\n\nExample: ${prefix}tiktoksearch imrankhan\n\n*Powered By Bandaheali*`,
+      },
+      { quoted: m }
+    );
   }
 };
 
-export default tiktokSearchCommand;
+export default tiktokSearch;
 
-// Sarkar-MD TikTok Search Command POWERED BY BANDAHEALI
+// Sarkar-MD
+// Powered By Bandaheali
